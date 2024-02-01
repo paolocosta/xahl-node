@@ -8,8 +8,8 @@ USER_ID=$(getent passwd $EUID | cut -d: -f1)
 sudo -l > /dev/null 2>&1
 
 # Set the sudo timeout for USER_ID to expire on reboot instead of default 5mins
-echo "Defaults:$USER_ID timestamp_timeout=-1" > /tmp/xfsudotmp
-sudo sh -c 'cat /tmp/xfsudotmp > /etc/sudoers.d/xfnode_deploy'
+echo "Defaults:$USER_ID timestamp_timeout=-1" > /tmp/xahlsudotmp
+sudo sh -c 'cat /tmp/xahlsudotmp > /etc/sudoers.d/xahlnode_deploy'
 
 # Set Colour Vars
 GREEN='\033[0;32m'
@@ -21,7 +21,7 @@ NC='\033[0m' # No Color
 
 FDATE=$(date +"%Y_%m_%d_%H_%M")
 
-source xf_node.vars
+source xahl_node.vars
 
 
 FUNC_PKG_CHECK(){
@@ -45,215 +45,27 @@ FUNC_PKG_CHECK(){
 }
 
 
-FUNC_DKR_INSTALL(){
-
-    if ! command -v docker &> /dev/null; then
-        echo "Docker is not installed. installing..."
-
-        echo "Installing Docker"
-
-        #sudo apt-get update
-
-        sudo apt-get install \
-                apt-transport-https \
-                ca-certificates \
-                curl \
-                software-properties-common -y
-
-        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-
-        sudo add-apt-repository \
-             "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
-             $(lsb_release -cs) \
-             stable"
-
-        sudo apt-get update -y
-
-        sudo apt-get install docker-ce -y
-
-        sudo curl -L "https://github.com/docker/compose/releases/download/1.27.4/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-
-
-        sudo chmod +x /usr/local/bin/docker-compose
-        sleep 5
-        echo "Docker Installed successfully"
-    else
-        echo "Docker is already installed. skipping.."
-    fi
-}
-
-
 FUNC_CLONE_NODE_SETUP(){
 
-    echo "Clone Xinfin Node to HOME directory "
+    echo "Clone repo '$VARVAL_CHAIN_REPO' to HOME directory "
     cd ~/
-    NODE_DIR="XinFin-Node"
+    NODE_DIR=$VARVAL_CHAIN_REPO
 
     if [ ! -d "$NODE_DIR" ]; then
       echo "The directory '$NODE_DIR' does not exist."
-        git clone https://github.com/XinFinOrg/XinFin-Node
+        git clone https://github.com/Xahau/$NODE_DIR
     else
       echo "The directory '$NODE_DIR' exists."
     fi
 
-    cd $NODE_DIR/$VARVAL_CHAIN_NAME
+    cd $NODE_DIR
 
-
-    ## update the email address with random mail address
-    ## CONTACT_DETAILS=YOUR_EMAIL_ADDRESS
-    sudo sed  -i 's|^CONTACT_DETAILS.*|CONTACT_DETAILS=noreply@rpc.local|g' .env
-
-
-    ## update the yml file with network config to allow nginx to pass traffic
-
-    # Specify the input YAML file
-    input_file="docker-compose.yml"
-
-    # Create a backup of the original YAML file with a timestamp
-    backup_file="docker-compose-$(date +'%Y%m%d%H%M%S').yml"
-
-    # Copy the original file to the backup file
-    sudo cp "$input_file" "$backup_file"
-    sudo chown $USER_ID:$USER_ID $backup_file
-
-
-    if [ "$_OPTION" == "testnet" ]; then
-
-
-    ## update the .env file 
-    ## NODE_NAME=XF_MasterNode
-    sudo sed  -i.bak 's|^NODE_NAME.*|NODE_NAME='$VARVAL_NODE_NAME'|g' .env
-
-    # Define the search text
-    search_text='    network_mode: "host"'
-
-    # Define the replacement text with a variable for the port value
-
-replace_text="\
-    networks:
-      mynetwork:
-        ipv4_address: 172.19.0.2
-    ports:
-      - \"$VARVAL_DKR_PORT:$VARVAL_DKR_PORT\"
-networks:
-  mynetwork:
-    ipam:
-      driver: default
-      config:
-        - subnet: \"172.19.0.0/24\""
-
-    # Use awk to perform the replacement and maintain YAML formatting
-    sudo awk -v search="$search_text" -v replace="$replace_text" '{
-      if ($0 == search) {
-        printf("%s\n", replace)
-        found = 1
-      } else {
-        print
-      }
-    }END{
-      if (!found) {
-        print "Error: Search text not found in the input file." > "/dev/stderr"
-        exit 1
-      }
-    }' "$input_file" | sudo tee "$input_file.tmp" > /dev/null
-    #> "$input_file.tmp"
-
-    # Replace the original file with the temporary file
-    sudo mv "$input_file.tmp" "$input_file"
-    sudo chown $USER_ID:$USER_ID $input_file
-
-    elif [ "$_OPTION" == "mainnet" ]; then
-
-
-    ## update the .env file 
-    ## NODE_NAME=XF_MasterNode
-    sudo sed  -i.bak 's|^INSTANCE_NAME.*|INSTANCE_NAME='$VARVAL_NODE_NAME'|g' .env
-
-    # Define the search text
-
-    search_text='    ports:'
-    #search_text='    env_file: .env'
-    
-    # Find the line number containing the search text
-    line_number=$(sudo grep -n "$search_text" "$input_file" | cut -d ":" -f 1)
-    
-        if [ -n "$line_number" ]; then
-            # Replace the content starting from the found line
-            #sudo sed -i "${line_number}q; ${line_number}n; ${line_number}s|.*|$replacement_text|" "$input_file"
-            #sudo sed -i "${line_number}s|.*|$replacement_text|g" "$input_file"
-            sudo sed -i "${line_number},\$d" "$input_file"
-            sudo cat << EOF | sudo tee -a $input_file
-    networks:
-      mynetwork:
-        ipv4_address: 172.19.0.2
-    ports:
-      - "$VARVAL_DKR_PORT:$VARVAL_DKR_PORT"
-networks:
-  mynetwork:
-    ipam:
-      driver: default
-      config:
-        - subnet: "172.19.0.0/24"
-EOF
-            #echo -e "$replacement_text" >> "$input_file"
-            echo
-            echo -e "${YELLOW}Replacement successful!${NC}"
-            echo
-        else
-            echo
-            echo -e "${YELLOW}Search text not found in the file.${NC}"
-            echo
-        fi
-
-    fi
-
-    echo -e "${YELLOW}Replacement complete, and a backup has been created as $backup_file.${NC}"
-
-
-    #sudo docker-compose -f docker-compose.yml up -d
-    # Create base folder structure chain
-    sudo ./docker-up.sh && sudo ./docker-down.sh
-
-
-    CHAIN_DIR=""
-
-    
-            # Prompt for Chain if not provided as a variable
-    if [ -z "$VARVAL_CHAIN_NAME" ]; then
-        while true; do
-         read -p "Chain name value missing.. please provide (e.g. mainnet or testnet): " _input
-            case $_input in
-                testnet )
-                    VARVAL_CHAIN_NAME="testnet"
-                    break
-                    ;;
-                mainnet )
-                    VARVAL_CHAIN_NAME="mainnet"
-                    break
-                    ;;
-                * ) echo "Please answer a valid option.";;
-            esac
-        done
-    fi
-
-    if [ $VARVAL_CHAIN_NAME == "testnet" ]; then
-        CHAIN_DIR="xdcchain-testnet"
-    elif [ $VARVAL_CHAIN_NAME == "mainnet" ]; then
-        CHAIN_DIR="xdcchain"
-    fi
-
-    echo
-    echo -e "${YELLOW}Chain Directory is:  $CHAIN_DIR${NC}"
-    echo -e "${YELLOW}Correcting chain directory permissions $CHAIN_DIR.${NC}"
-
-    sudo chown $USER_ID:$USER_ID -R $CHAIN_DIR
-    #echo -e "${YELLOW}$(ls .)${NC}"
     sleep 3s
 
     #sleep 3s
     echo 
-    echo -e "${YELLOW}Starting Xinfin Node ...${NC}"
-    sudo ./docker-up.sh -f docker-compose.yml up -d
+    echo -e "${YELLOW}Starting Xahau Node install ...${NC}"
+    sudo ./xahaud-install-update.sh
     sleep 2s
     #FUNC_EXIT
 }
@@ -272,7 +84,7 @@ FUNC_SETUP_UFW_PORTS(){
     CPORT=$(sudo ss -tlpn | grep sshd | awk '{print$4}' | cut -d ':' -f 2 -s)
     #echo $CPORT
     sudo ufw allow $CPORT/tcp
-    sudo ufw allow $VARVAL_DKR_PORT/tcp
+    sudo ufw allow $VARVAL_CHAIN_PEER/tcp
     sudo ufw status verbose
     sleep 2s
 }
@@ -373,24 +185,12 @@ FUNC_LOGROTATE(){
 
     fi
 
-    
-
-
-
-    CHAIN_DIR=""
-    if [ $VARVAL_CHAIN_NAME == "testnet" ]; then
-        CHAIN_DIR="xdcchain-testnet"
-    elif [ $VARVAL_CHAIN_NAME == "mainnet" ]; then
-        CHAIN_DIR="xdcchain"
-    fi
-
-    if [ "$USER_ID" == "root" ]; then
         cat <<EOF > /tmp/tmpxinfin-logs
-/$USER_ID/XinFin-Node/$VARVAL_CHAIN_NAME/$CHAIN_DIR/*.log
+/opt/xahaud/log/*.log
         {
             su $USER_ID $USER_ID
             size 100M
-            rotate 10
+            rotate 50
             copytruncate
             daily
             missingok
@@ -403,28 +203,8 @@ FUNC_LOGROTATE(){
             endscript
         }    
 EOF
-    else
-        cat <<EOF > /tmp/tmpxinfin-logs
-/home/$USER_ID/XinFin-Node/$VARVAL_CHAIN_NAME/$CHAIN_DIR/*.log
-        {
-            su $USER_ID $USER_ID
-            size 100M
-            rotate 10
-            copytruncate
-            daily
-            missingok
-            notifempty
-            compress
-            delaycompress
-            sharedscripts
-            postrotate
-                    invoke-rc.d rsyslog rotate >/dev/null 2>&1 || true
-            endscript
-        }    
-EOF
-    fi
 
-    sudo sh -c 'cat /tmp/tmpxinfin-logs > /etc/logrotate.d/xinfin-logs'
+    sudo sh -c 'cat /tmp/tmpxinfin-logs > /etc/logrotate.d/xahau-logs'
 
 }
 
@@ -439,14 +219,14 @@ FUNC_NODE_DEPLOY(){
     echo -e "${GREEN}#########################################################################${NC}"
     echo -e "${YELLOW}#########################################################################${NC}"
     echo -e "${GREEN}${NC}"
-    echo -e "${GREEN}             XinFin ${BYELLOW}$_OPTION${GREEN} RPC/WSS Node - Install${NC}"
+    echo -e "${GREEN}             Xahau ${BYELLOW}$_OPTION${GREEN} RPC/WSS Node - Install${NC}"
     echo -e "${GREEN}${NC}"
     echo -e "${YELLOW}#########################################################################${NC}"
     echo -e "${GREEN}#########################################################################${NC}"
     sleep 3s
 
     #USER_DOMAINS=""
-    source ~/xf_node/xf_node.vars
+    source ~/xahl-node/xahl_node.vars
 
 
     # installs default packages listed in vars file
@@ -459,7 +239,8 @@ FUNC_NODE_DEPLOY(){
         VARVAL_CHAIN_NAME=$_OPTION
         VARVAL_CHAIN_RPC=$NGX_MAINNET_RPC
         VARVAL_CHAIN_WSS=$NGX_MAINNET_WSS
-        VARVAL_DKR_PORT=$DKR_MAINNET_PORT
+        VARVAL_CHAIN_REPO="mainnet-docker"
+        VARVAL_CHAIN_PEER=$XAHL_MAINNET_PEER
 
     elif [ "$_OPTION" == "testnet" ]; then
         echo -e "${GREEN} ### Configuring node for ${BYELLOW}$_OPTION${GREEN}..  ###${NC}"
@@ -467,11 +248,12 @@ FUNC_NODE_DEPLOY(){
         VARVAL_CHAIN_NAME=$_OPTION
         VARVAL_CHAIN_RPC=$NGX_TESTNET_RPC
         VARVAL_CHAIN_WSS=$NGX_TESTNET_WSS
-        VARVAL_DKR_PORT=$DKR_TESTNET_PORT
+        VARVAL_CHAIN_REPO="Xahau-Testnet-Docker"
+        VARVAL_CHAIN_PEER=$XAHL_TESTNET_PEER
     fi
 
 
-    VARVAL_NODE_NAME="xf_node_$(hostname -s)"
+    VARVAL_NODE_NAME="xahl_node_$(hostname -s)"
     echo -e "${BYELLOW}  || Node name is : $VARVAL_NODE_NAME ||"
     #VARVAL_CHAIN_RPC=$NGX_RPC
     echo -e "${BYELLOW}  || Node RPC port is : $VARVAL_CHAIN_RPC ||"
@@ -506,10 +288,7 @@ FUNC_NODE_DEPLOY(){
     #apt update -y
     #apt upgrade -y
 
-    #Docker install
-    FUNC_DKR_INSTALL;
-
-    #XinFin Node setup
+    #Xahau Node setup
     FUNC_CLONE_NODE_SETUP;
 
     FUNC_CERTBOT;
@@ -571,7 +350,7 @@ server {
         allow $SRC_IP;  # Allow the source IP of the SSH session
         allow $NODE_IP;  # Allow the source IP of the Node itself (for validation testing)
         deny all;
-        proxy_pass http://172.19.0.2:$VARVAL_CHAIN_RPC;
+        proxy_pass http://localhost:$VARVAL_CHAIN_RPC;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -622,8 +401,10 @@ server {
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache off;
+        proxy_buffering off;
 
-        # These three are critical to getting XDC node websockets to work
+        # These three are critical to getting websockets to work
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -644,7 +425,7 @@ EOF
     sudo chmod 644 $NGX_CONF_NEW
 
     #check if symbolic link file exists in sites-enabled
-    if [ ! -f /etc/nginx/sites-enabled/xinfin ]; then
+    if [ ! -f /etc/nginx/sites-enabled/xahau ]; then
         sudo ln -s $NGX_CONF_NEW /etc/nginx/sites-enabled/
     fi
     
@@ -663,7 +444,6 @@ EOF
     echo -e "${YELLOW}## Setup: Created a new Nginx configuration file ...${NC}"
     echo
     echo -e "${YELLOW}##  Nginx is now installed and running with a Let's Encrypt SSL/TLS certificate for the domain $A_RECORD.${NC}"
-    echo -e "${YELLOW}##  You can access your secure web server by entering https://$CNAME_RECORD1 of https://$CNAME_RECORD2 in a web browser.${NC}"
     echo
     echo
     echo
@@ -677,7 +457,7 @@ EOF
 
 FUNC_EXIT(){
     # remove the sudo timeout for USER_ID
-    sudo sh -c 'rm -f /etc/sudoers.d/xfnode_deploy'
+    sudo sh -c 'rm -f /etc/sudoers.d/xahlnode_deploy'
     bash ~/.profile
     sudo -u $USER_ID sh -c 'bash ~/.profile'
 	exit 0
