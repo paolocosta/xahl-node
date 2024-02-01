@@ -401,7 +401,7 @@ server {
         allow $SRC_IP;  # Allow the source IP of the SSH session
         allow $NODE_IP;  # Allow the source IP of the Node itself (for validation testing)
         deny all;
-        proxy_pass http://172.19.0.2:$VARVAL_CHAIN_WSS;
+        proxy_pass http://localhost:$VARVAL_CHAIN_WSS;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
