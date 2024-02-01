@@ -67,6 +67,11 @@ FUNC_CLONE_NODE_SETUP(){
     echo -e "${YELLOW}Starting Xahau Node install ...${NC}"
     sudo ./xahaud-install-update.sh
     sleep 2s
+    echo -e "${YELLOW}Updating conf file to limit public RPC/WS to localhost ...${NC}"
+    sed -i -E '/^\[port_(ws|rpc)_public\]$/,/^\[/ {/^(ip = )0\.0\.0\.0/s/^(ip = )0\.0\.0\.0/\1127.0.0.1/}' /opt/xahaud/etc/xahaud.cfg
+    sleep 2s
+    sudo systemctl restart xahaud.service
+    sleep 2s
     #FUNC_EXIT
 }
 
