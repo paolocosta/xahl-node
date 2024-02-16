@@ -47,7 +47,7 @@ To download the script(s) to your local node & install, read over the following 
 
         cd ~/
         git clone https://github.com/go140point6/xahl-node
-        cd xahl_node
+        cd xahl-node
         chmod +x *.sh
 
 
@@ -144,7 +144,7 @@ This should open another session within your terminal, similar to the below;
 
 To apply repo updates to your local clone, be sure to stash any modifications you may have made to the `xahl_node.vars` file & take a manual backup also.
 
-        cd ~/xahl_node
+        cd ~/xahl-node
         git stash
         cp xahl_node.vars ~/xahl_node_$(date +'%Y%m%d%H%M%S').vars
         git pull
