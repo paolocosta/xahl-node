@@ -63,7 +63,7 @@ The file also controls some of the packages that are installed on the node. More
 
 Simply clone down the repo and update the file using your preferred editor such as nano;
 
-        nano ~/xahl_node/xahl_node.vars
+        nano ~/xahl-node/xahl_node.vars
 
 
 ### Script Usage
