@@ -5,6 +5,8 @@ Xahau submission node installation with nginx &amp; lets encrypt TLS certificate
 
 This script will take the standard Xahau node install (non-docker version) and supplement it with the necessary configuration to provide a TLS secured RPC/WSS endpoint using Nginx.
 
+This script is automating the manual steps in here, please review for more information about the process: https://github.com/go140point6/xahl-info/blob/main/setup-xahaud-node.md 
+
 # Table of Contents
 ---
 
@@ -18,10 +20,11 @@ This script will take the standard Xahau node install (non-docker version) and s
     - [Nginx related](#nginx-related)
       - [Permitted Access - scripted](#permitted-access---scripted)
       - [Permitted Access - manual](#permitted-access---manual)
-    - [Testing your RPC/WSS endpoint](#testing-your-rpcwss-endpoint)
-      - [WSS](#wss)
+    - [Testing your Xahaud server and Websocket endpoint](#testing-your-xahaud-server-and-websocket-endpoint)
+      - [xahaud](#xahaud)
+      - [Websocket](#websocket)
   - [Manual updates](#manual-updates)
-    - [Contributers:](#contributers)
+    - [Contributors:](#contributors)
     - [Feedback](#feedback)
 
 
@@ -95,23 +98,26 @@ __tbc__
 
 #### Permitted Access - manual
 
-In order to add/remove source IPv4 addresses from the permit list within the nginx config, you simple access the file with your preferred editor e.g. vim or nano etc.  Each of the server blocks must be updated to reflect your desired access control policy.
+In order to add/remove source IPv4 addresses from the permit list within the nginx config, you simply access the file with your preferred editor e.g. vim or nano etc.  Each of the server blocks must be updated to reflect your desired access control policy. Pay attention
+to what server block you are in, there are two! The first is for RPC access, the second is for Websocket access.
 
 Open the file with the 'nano' editor;
 `sudo nano /etc/nginx/sites-available/xahau`
 
-Move the cursor to the server blocks, similar to the following;
+Move the cursor to the server blocks, similar to the following. NOTE! These IP addresses are EXAMPLES! You need YOUR IP addresses here;
 
-        location / {
-            try_files  / =404;
-            allow 198.51.100.102;  # Allow the source IP of the SSH session
-            allow 198.51.100.171;  # Mgmt VPS station
-	        deny all;
-            proxy_pass http://127.0.0.1;
+    location / {
+        try_files  / =404;
+        allow 123.45.67.89;     # evr-node01
+        allow 98.76.54.32;      # evr-node02
+        allow 111.111.111.111;  # evr-node03
+        allow 88.88.88.88;      # some-other-server
+        allow 55.44.33.222;     # Allow the source IP of the node itself (for validation testing)
+        deny all;
 
 __ADD__ : Simply add a new line after the last allow (& above the deny all) being sure to enter a valid IPv4 address and end with a semi-colon '*_;_*'
 
-__REMOVE__ : Simple delete the entire line.
+__REMOVE__ : Simply delete the entire line.
 
 Save the file and exit the editor.
 
@@ -122,16 +128,32 @@ For the changes to take effect, you will need to restart the nginx service as fo
 
 ---
 
-### Testing your RPC/WSS endpoint
+### Testing your Xahaud server and Websocket endpoint
 
 The following are examples of tests that have been used successfully to validate correct operation;
 
+#### xahaud
 
-#### WSS
+Run the following command:
 
-Copy the following command and update with the your WSS domain that you entered at run time or in the vars file.
+        xahaud server_info
 
-        wscat -c wss://wss.mydomain.com
+Note: look for `"server_state" : "full",` and your xahaud should be working as expected.  May be "connected", if just installed. Give it time.
+
+#### Websocket
+
+Install wscat one of two ways:
+
+        sudo apt-get update
+        sudo apt-get install node-ws
+
+        OR
+
+        npm install -g wscat
+
+Copy the following command and update with the your WSS CNAME that you entered at run time or in the vars file.
+
+        wscat -c wss://wss.EXAMPLE.com
 
 This should open another session within your terminal, similar to the below;
 
@@ -152,8 +174,8 @@ To apply repo updates to your local clone, be sure to stash any modifications yo
 
 ---
 
-### Contributers: 
-This was all made possible by [@inv4fee2020](https://github.com/inv4fee2020/), this is 98% his work, I just copied pasta'd.
+### Contributors:  
+This was all made possible by [@inv4fee2020](https://github.com/inv4fee2020/), this is 98% his work, I just copied pasta'd... and fixed his spelling mistakes like "utilising"... ;)
 
 A special thanks & shout out to the following community members for their input & testing;
 - [@realgo140point6](https://github.com/go140point6)
@@ -163,4 +185,4 @@ A special thanks & shout out to the following community members for their input 
 ---
 
 ### Feedback
-Please provide feedback on any issues encountered or indeed functionality by utilising the relevant Github issues..
+Please provide feedback on any issues encountered or indeed functionality by utilizing the relevant Github issues..
