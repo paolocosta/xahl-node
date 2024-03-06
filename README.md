@@ -185,8 +185,4 @@ A special thanks & shout out to the following community members for their input 
 ---
 
 ### Feedback
-<<<<<<< HEAD
 Please provide feedback on any issues encountered or indeed functionality by utilizing the relevant Github issues..
-=======
-Please provide feedback on any issues encountered or indeed functionality by utilising the relevant Github issues..
->>>>>>> 3bd339395cf994fa9d4f33c5c04fa1b71ed9c375
